@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.IO;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
@@ -216,7 +217,14 @@ public class Tongue : BaseUnityPlugin
             "de",
             new ConfigDescription("", new AcceptableValueList<string>(language_list))
         );
-        espeak_Initialize(AUDIO_OUTPUT_SYNCHRONOUS, 0, null, 0);
+        string espeakNgDataLocation = Directory.GetFiles(Paths.PluginPath, "phondata-manifest", SearchOption.AllDirectories)[0].Replace("phondata-manifest", "");
+        Logger.LogInfo("Attempting to load eSpeak data from " + espeakNgDataLocation);
+        int result = espeak_Initialize(AUDIO_OUTPUT_SYNCHRONOUS, 0, espeakNgDataLocation, 0);
+        if (result == -1) {
+            Logger.LogError($"eSpeak failed to initialize from {espeakNgDataLocation}! Not patching!");
+            return;
+        }
+        Logger.LogInfo("eSpeak loaded successfully! Patching Strobotnik.Klattersynth.SpeechSynth.speak()...");
         var harmony = new Harmony("sane.tongue");
         harmony.PatchAll();
     }
