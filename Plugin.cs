@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.IO;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
@@ -217,36 +217,38 @@ public class Tongue : BaseUnityPlugin
             "de",
             new ConfigDescription("", new AcceptableValueList<string>(language_list))
         );
-        string espeakNgDataLocation = Directory.GetFiles(Paths.PluginPath, "phondata-manifest", SearchOption.AllDirectories)[0].Replace("phondata-manifest", "");
+        string espeakNgDataLocation = Directory
+            .GetFiles(Paths.PluginPath, "phondata-manifest", SearchOption.AllDirectories)[0]
+            .Replace("phondata-manifest", "");
         Logger.LogInfo("Attempting to load eSpeak data from " + espeakNgDataLocation);
         int result = espeak_Initialize(AUDIO_OUTPUT_SYNCHRONOUS, 0, espeakNgDataLocation, 0);
-        if (result == -1) {
-            Logger.LogError($"eSpeak failed to initialize from {espeakNgDataLocation}! Not patching!");
+        if (result == -1)
+        {
+            Logger.LogError(
+                $"eSpeak failed to initialize from {espeakNgDataLocation}! Not patching!"
+            );
             return;
         }
-        Logger.LogInfo("eSpeak loaded successfully! Patching Strobotnik.Klattersynth.SpeechSynth.speak()...");
+        Logger.LogInfo(
+            "eSpeak loaded successfully! Patching Strobotnik.Klattersynth.SpeechSynth.speak()..."
+        );
         var harmony = new Harmony("sane.tongue");
         harmony.PatchAll();
     }
 
-    static MethodBase TargetMethod()
-    {
-        return typeof(SpeechSynth).GetMethod(
-            "speak",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-            null,
-            new[]
-            {
-                typeof(StringBuilder),
-                typeof(int),
-                typeof(SpeechSynth.VoicingSource),
-                typeof(bool),
-            },
-            null
-        );
-    }
-
-    static void Prefix(
+    [HarmonyPatch(
+        typeof(SpeechSynth),
+        nameof(SpeechSynth.speak),
+        new Type[]
+        {
+            typeof(StringBuilder),
+            typeof(int),
+            typeof(SpeechSynth.VoicingSource),
+            typeof(bool),
+        }
+    )]
+    [HarmonyPrefix]
+    static void SpeakPrefix(
         ref StringBuilder text,
         int voiceFundamentalFreq,
         SpeechSynth.VoicingSource voicingSource,
@@ -257,13 +259,13 @@ public class Tongue : BaseUnityPlugin
         string tmp = text.ToString();
         text.Length = 0;
         text.Append(phoneticize(tmp));
+        Logger.LogInfo($"Saying: {text}");
 
         while (text.ToString().IndexOf(':') != -1)
         {
             int index = text.ToString().IndexOf(':');
             text[index] = text[index - 1];
         }
-        ;
 
         Dictionary<char, char> phonemeFixes = new Dictionary<char, char>
         {
