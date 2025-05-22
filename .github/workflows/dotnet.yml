@@ -33,7 +33,7 @@ jobs:
         mkdir "dist"
         tree
         cp -r blobs/eSpeak-ng/* dist
-        cp -r bin/Debug/netstandard2.1/tongue.dll dist
+        cp -r bin/Debug/netstandard2.1/win-x64/tongue.dll dist
         cp -r README.md dist
         cp -r LICENSE dist
         cp -r CHANGELOG.md dist
