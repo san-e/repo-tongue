@@ -36,11 +36,12 @@ jobs:
         cp -r README.md dist
         cp -r LICENSE dist
         cp -r CHANGELOG.md dist
+        echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
     - name: Upload dist directory as artifact
       uses: actions/upload-artifact@v4
       with:
-        name: sane-Tongue-${{ github.sha }}
+        name: sane-Tongue-${{ steps.vars.outputs.short_sha }}
         path: dist/
         compression-level: 9
         
