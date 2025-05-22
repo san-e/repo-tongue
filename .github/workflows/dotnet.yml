@@ -31,6 +31,7 @@ jobs:
     - name : Organize zip directory
       run: |
         mkdir "dist"
+        tree
         cp -r blobs/eSpeak-ng/* dist
         cp -r bin/Debug/netstandard2.1/tongue.dll dist
         cp -r README.md dist
