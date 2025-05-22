@@ -1,3 +1,6 @@
+## v1.0.0
+    - Add networking support. Other players will be able to hear your selected language!
+
 ## v0.0.3
     - Packaging fixes
 
