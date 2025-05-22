@@ -41,7 +41,7 @@ jobs:
       run: |
         tree
         cd dist
-        zip -r ../artifact.zip
+        zip -r ../artifact.zip .
 
     - name: Upload ZIP as artifact
       uses: actions/upload-artifact@v4
