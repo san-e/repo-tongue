@@ -30,8 +30,6 @@ public class Tongue : BaseUnityPlugin
     public PhotonView photonView;
     public static NetworkedEvent LanguageChangeEvent;
     private ConfigEntry<string> languageSetting;
-    private ConfigEntry<bool> sentences;
-    private ConfigEntry<bool> ownLanguageIfEmpty;
     const int AUDIO_OUTPUT_SYNCHRONOUS = 0;
     const int espeakCHARS_UTF8 = 1;
     const int PHONEME_MODE_ASCII = 0;
@@ -185,6 +183,8 @@ public class Tongue : BaseUnityPlugin
 
     public static string phoneticize(string text, string language)
     {
+        // Retain default Klattersynth phoneticization when
+        // English is selected
         if (language == "en")
         {
             return text;
@@ -234,17 +234,6 @@ public class Tongue : BaseUnityPlugin
                 "What language should the TTS emulate?",
                 new AcceptableValueList<string>(language_list)
             )
-        );
-        sentences = Config.Bind(
-            "General",
-            "Speak in full sentences",
-            false,
-            new ConfigDescription("Don't split chat messages into individual words.")
-        );
-        ownLanguageIfEmpty = Config.Bind(
-            "General",
-            "Use your own language if a Player doesnt use this plugin",
-            true
         );
 
         string espeakNgDataLocation;
@@ -351,13 +340,7 @@ public class Tongue : BaseUnityPlugin
     [HarmonyPatch(
         typeof(SpeechSynth),
         nameof(SpeechSynth.speak),
-        new Type[]
-        {
-            typeof(StringBuilder),
-            typeof(int),
-            typeof(SpeechSynth.VoicingSource),
-            typeof(bool),
-        }
+        [typeof(StringBuilder), typeof(int), typeof(SpeechSynth.VoicingSource), typeof(bool)]
     )]
     [HarmonyPrefix]
     private static void SpeakPrefix(
@@ -371,13 +354,18 @@ public class Tongue : BaseUnityPlugin
         string tmp = text.ToString();
 
         text.Length = 0;
-        Logger.LogInfo(Instance.currentSpeaker);
         string language = Instance.languagePerPlayer.GetValueOrDefault(
             Instance.currentSpeaker,
             Instance.languageSetting.Value
         );
         text.Append(phoneticize(tmp, language));
-        Logger.LogDebug($"Saying word: {text}");
+        Logger.LogInfo($"Saying word: {text}");
+
+        // Don't mess with regular text
+        if (language == "en")
+        {
+            return;
+        }
 
         // Klattersynth doesn't support the colon as a long indicator, so
         // replace it with another instance of the letter preceding it to
