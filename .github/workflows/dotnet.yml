@@ -29,6 +29,7 @@ jobs:
       run: dotnet build --runtime win-x64
 
     - name : Organize dist directory
+      id: vars
       run: |
         mkdir "dist"
         cp -r blobs/eSpeak-ng/* dist
