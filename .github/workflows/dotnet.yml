@@ -40,7 +40,7 @@ jobs:
     - name: Upload dist directory as artifact
       uses: actions/upload-artifact@v4
       with:
-        name: artifact
+        name: sane-Tongue-${{ github.sha }}
         path: dist/
         compression-level: 9
         
