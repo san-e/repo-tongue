@@ -1,0 +1,53 @@
+# This workflow will build a .NET project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
+
+name: .NET Build
+
+on:
+  push:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 9.0.x
+              
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build
+      run: dotnet build --runtime win-x64
+
+    - name : Organize zip directory
+      run: |
+        mkdir "dist"
+        cp blobs/eSpeak-ng/* dist
+        cp bin/Debug/netstandard2.1/tongue.dll dist
+        cp README.md dist
+        cp LICENSE dist
+        cp CHANGELOG.md dist
+
+    - name: Create ZIP package
+      run: |
+        cd dist
+        zip -r ../artifact.zip
+
+    - name: Upload ZIP as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: artifact
+        path: artifact.zip
+        compression-level: 9
+        
+
+    
