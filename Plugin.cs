@@ -279,6 +279,8 @@ public class Tongue : BaseUnityPlugin
         string[] data = (string[])eventData.CustomData;
         string steamID = data[0];
         string language = data[1];
+
+        Instance.languagePerPlayer[steamID] = language;
     }
 
     public void ChangeTTSLanguageForSteamID(string steamID, string language)
