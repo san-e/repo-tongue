@@ -31,7 +31,6 @@ jobs:
     - name : Organize zip directory
       run: |
         mkdir "dist"
-        tree
         cp -r blobs/eSpeak-ng/* dist
         cp -r bin/Debug/netstandard2.1/win-x64/tongue.dll dist
         cp -r README.md dist
@@ -40,6 +39,7 @@ jobs:
 
     - name: Create ZIP package
       run: |
+        tree
         cd dist
         zip -r ../artifact.zip
 
