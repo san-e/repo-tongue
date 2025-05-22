@@ -31,11 +31,11 @@ jobs:
     - name : Organize zip directory
       run: |
         mkdir "dist"
-        cp blobs/eSpeak-ng/* dist
-        cp bin/Debug/netstandard2.1/tongue.dll dist
-        cp README.md dist
-        cp LICENSE dist
-        cp CHANGELOG.md dist
+        cp -r blobs/eSpeak-ng/* dist
+        cp -r bin/Debug/netstandard2.1/tongue.dll dist
+        cp -r README.md dist
+        cp -r LICENSE dist
+        cp -r CHANGELOG.md dist
 
     - name: Create ZIP package
       run: |
