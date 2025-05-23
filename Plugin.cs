@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
@@ -414,5 +415,13 @@ public class Tongue : BaseUnityPlugin
         {
             text.Replace(replacee, replacement);
         }
+
+        // eSpeak sometimes tries to change language mid-word like this:
+        // [(en)k'u:l(de)]
+        // Klattersynth obviously doesn't support this, so we strip out
+        // all text in parentheses.
+        tmp = Regex.Replace(text.ToString(), @"\([^)]*\)", "").Trim();
+        text.Length = 0;
+        text.Append(tmp);
     }
 }
