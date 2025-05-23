@@ -11,7 +11,6 @@ using BepInEx.Configuration;
 using BepInEx.Logging;
 using ExitGames.Client.Photon;
 using HarmonyLib;
-using Photon.Pun;
 using Photon.Realtime;
 using REPOLib.Modules;
 using Strobotnik.Klattersynth;
@@ -28,7 +27,6 @@ public class Tongue : BaseUnityPlugin
 {
     internal static new ManualLogSource Logger;
     public static Tongue Instance { get; private set; }
-    public PhotonView photonView;
     public static NetworkedEvent LanguageChangeEvent;
     private ConfigEntry<string> languageSetting;
     const int AUDIO_OUTPUT_SYNCHRONOUS = 0;
@@ -363,7 +361,6 @@ public class Tongue : BaseUnityPlugin
             Instance.languageSetting.Value
         );
         text.Append(phoneticize(tmp, language));
-        // Logger.LogInfo($"Saying word: {text}");
 
         // Don't mess with regular text
         if (language == "en")
@@ -404,5 +401,7 @@ public class Tongue : BaseUnityPlugin
         tmp = Regex.Replace(text.ToString(), @"\([^)]*\)", "").Trim();
         text.Length = 0;
         text.Append(tmp);
+
+        // Logger.LogInfo($"Saying word: {text}");
     }
 }
