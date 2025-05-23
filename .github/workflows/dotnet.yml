@@ -28,25 +28,22 @@ jobs:
     - name: Build
       run: dotnet build --runtime win-x64
 
-    - name : Organize zip directory
+    - name : Organize dist directory
+      id: vars
       run: |
         mkdir "dist"
-        cp blobs/eSpeak-ng/* dist
-        cp bin/Debug/netstandard2.1/tongue.dll dist
-        cp README.md dist
-        cp LICENSE dist
-        cp CHANGELOG.md dist
+        cp -r blobs/eSpeak-ng/* dist
+        cp -r bin/Debug/netstandard2.1/win-x64/tongue.dll dist
+        cp -r README.md dist
+        cp -r LICENSE dist
+        cp -r CHANGELOG.md dist
+        echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
-    - name: Create ZIP package
-      run: |
-        cd dist
-        zip -r ../artifact.zip
-
-    - name: Upload ZIP as artifact
+    - name: Upload dist directory as artifact
       uses: actions/upload-artifact@v4
       with:
-        name: artifact
-        path: artifact.zip
+        name: sane-Tongue-${{ steps.vars.outputs.short_sha }}
+        path: dist/
         compression-level: 9
         
 

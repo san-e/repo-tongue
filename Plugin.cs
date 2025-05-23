@@ -1,30 +1,39 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.IO;
+using System.Text.RegularExpressions;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
+using ExitGames.Client.Photon;
 using HarmonyLib;
+using Photon.Realtime;
+using REPOLib.Modules;
 using Strobotnik.Klattersynth;
+using UnityEngine;
 
 namespace tongue;
 
-[BepInPlugin("sane.tongue", "Tongue", "0.0.1")]
+[BepInPlugin("sane.tongue", "Tongue", "1.0.0")]
 [BepInProcess("REPO.exe")]
 [BepInIncompatibility("Lavighju.espeakTTS")]
+[BepInDependency(REPOLib.MyPluginInfo.PLUGIN_GUID, BepInDependency.DependencyFlags.HardDependency)]
 [HarmonyPatch]
 public class Tongue : BaseUnityPlugin
 {
     internal static new ManualLogSource Logger;
     public static Tongue Instance { get; private set; }
+    public static NetworkedEvent LanguageChangeEvent;
     private ConfigEntry<string> languageSetting;
     const int AUDIO_OUTPUT_SYNCHRONOUS = 0;
     const int espeakCHARS_UTF8 = 1;
     const int PHONEME_MODE_ASCII = 0;
+    private string currentSpeaker = "";
+    private Dictionary<string, string> languagePerPlayer = new Dictionary<string, string>();
 
     [DllImport("libespeak-ng.dll", CallingConvention = CallingConvention.Cdecl)]
     public static extern int espeak_Initialize(int output, int buflength, string path, int options);
@@ -171,13 +180,15 @@ public class Tongue : BaseUnityPlugin
         "yue",
     };
 
-    public static string phoneticize(string text)
+    public static string phoneticize(string text, string language)
     {
-        if (Instance.languageSetting.Value == "en")
+        // Retain default Klattersynth phoneticization when
+        // English is selected
+        if (language == "en")
         {
             return text;
         }
-        espeak_SetVoiceByName(Instance.languageSetting.Value);
+        espeak_SetVoiceByName(language);
 
         byte[] utf8Bytes = Encoding.UTF8.GetBytes(text + '\0'); // null-terminated
 
@@ -210,43 +221,131 @@ public class Tongue : BaseUnityPlugin
     private void Awake()
     {
         Instance = this;
+        Instance.gameObject.hideFlags = HideFlags.HideAndDontSave;
         Logger = base.Logger;
+        LanguageChangeEvent = new NetworkedEvent("LanguageChangeEvent", HandleLanguageChangeEvent);
+
         languageSetting = Config.Bind(
             "General",
             "Language",
             "de",
-            new ConfigDescription("", new AcceptableValueList<string>(language_list))
+            new ConfigDescription(
+                "What language should the TTS emulate?",
+                new AcceptableValueList<string>(language_list)
+            )
         );
-        string espeakNgDataLocation = Directory.GetFiles(Paths.PluginPath, "phondata-manifest", SearchOption.AllDirectories)[0].Replace("phondata-manifest", "");
-        Logger.LogInfo("Attempting to load eSpeak data from " + espeakNgDataLocation);
-        int result = espeak_Initialize(AUDIO_OUTPUT_SYNCHRONOUS, 0, espeakNgDataLocation, 0);
-        if (result == -1) {
-            Logger.LogError($"eSpeak failed to initialize from {espeakNgDataLocation}! Not patching!");
+
+        string espeakNgDataLocation;
+        try
+        {
+            espeakNgDataLocation = Directory
+                .GetFiles(Paths.PluginPath, "phondata-manifest", SearchOption.AllDirectories)[0]
+                .Replace("phondata-manifest", "");
+        }
+        catch
+        {
+            Logger.LogError("espeak-ng-data not found!");
             return;
         }
-        Logger.LogInfo("eSpeak loaded successfully! Patching Strobotnik.Klattersynth.SpeechSynth.speak()...");
+
+        Logger.LogInfo("Attempting to load eSpeak data from " + espeakNgDataLocation);
+        int result = espeak_Initialize(AUDIO_OUTPUT_SYNCHRONOUS, 0, espeakNgDataLocation, 0);
+        if (result == -1)
+        {
+            Logger.LogError(
+                $"eSpeak failed to initialize from {espeakNgDataLocation}! Not patching!"
+            );
+            return;
+        }
+        Logger.LogInfo("eSpeak loaded successfully! Patching Speak Method...");
         var harmony = new Harmony("sane.tongue");
         harmony.PatchAll();
     }
 
-    static MethodBase TargetMethod()
+    private static void HandleLanguageChangeEvent(EventData eventData)
     {
-        return typeof(SpeechSynth).GetMethod(
-            "speak",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-            null,
-            new[]
-            {
-                typeof(StringBuilder),
-                typeof(int),
-                typeof(SpeechSynth.VoicingSource),
-                typeof(bool),
-            },
-            null
+        string[] data = (string[])eventData.CustomData;
+        string steamID = data[0];
+        string language = data[1];
+
+        Instance.languagePerPlayer[steamID] = language;
+    }
+
+    // Every time before TTS text is shown, update the current speaker.
+    // We do this here because this function gets a reference to the
+    // PlayerAvatar of the player speaking currently. Maybe this would've
+    // been useful to know before I did all this.
+    //
+    // We can't do this in HandleLanguageChangeEvent, presumably because
+    // it gets called after the first message is already spoken (??)
+    // Networked Events are weird like that I suppose
+    [HarmonyPatch(typeof(WorldSpaceUIParent), "TTS")]
+    [HarmonyPrefix]
+    private static void TTSPrefix(PlayerAvatar _player, string _text, float _time)
+    {
+        string steamID = (string)
+            typeof(PlayerAvatar)
+                .GetField(
+                    "steamID",
+                    BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public
+                )
+                .GetValue(_player);
+        Logger.LogDebug("Current Speaker: " + (string)steamID);
+        Instance.currentSpeaker = steamID;
+    }
+
+    public void ChangeTTSLanguageForSteamID(string steamID, string language)
+    {
+        if (!language_list.Contains(language))
+        {
+            Logger.LogError(
+                $"Language {language} is not valid. Perhaps someone is using a different version of Tongue."
+            );
+            return;
+        }
+
+        PlayerAvatar avatar = SemiFunc.PlayerAvatarGetFromSteamID(steamID);
+        if (avatar == null)
+        {
+            Logger.LogError("Someone wants to change language but provided an invalid steamID!");
+            return;
+        }
+        if (languagePerPlayer.ContainsKey(steamID))
+        {
+            languagePerPlayer[steamID] = language;
+        }
+        else
+        {
+            languagePerPlayer.Add(steamID, language);
+        }
+    }
+
+    [HarmonyPatch(typeof(PlayerAvatar), nameof(PlayerAvatar.ChatMessageSend))]
+    [HarmonyPrefix]
+    private static void ChatMessageSendPrefix(PlayerAvatar __instance)
+    {
+        string steamID = (string)
+            typeof(PlayerAvatar)
+                .GetField(
+                    "steamID",
+                    BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public
+                )
+                .GetValue(__instance);
+        string[] content = { steamID, Instance.languageSetting.Value };
+        LanguageChangeEvent.RaiseEvent(
+            content,
+            NetworkingEvents.RaiseAll,
+            SendOptions.SendReliable
         );
     }
 
-    static void Prefix(
+    [HarmonyPatch(
+        typeof(SpeechSynth),
+        nameof(SpeechSynth.speak),
+        [typeof(StringBuilder), typeof(int), typeof(SpeechSynth.VoicingSource), typeof(bool)]
+    )]
+    [HarmonyPrefix]
+    private static void SpeakPrefix(
         ref StringBuilder text,
         int voiceFundamentalFreq,
         SpeechSynth.VoicingSource voicingSource,
@@ -255,16 +354,32 @@ public class Tongue : BaseUnityPlugin
     {
         bracketsAsPhonemes = true;
         string tmp = text.ToString();
-        text.Length = 0;
-        text.Append(phoneticize(tmp));
 
+        text.Length = 0;
+        string language = Instance.languagePerPlayer.GetValueOrDefault(
+            Instance.currentSpeaker,
+            Instance.languageSetting.Value
+        );
+        text.Append(phoneticize(tmp, language));
+
+        // Don't mess with regular text
+        if (language == "en")
+        {
+            return;
+        }
+
+        // Klattersynth doesn't support the colon as a long indicator, so
+        // replace it with another instance of the letter preceding it to
+        // emulate the effect.
         while (text.ToString().IndexOf(':') != -1)
         {
             int index = text.ToString().IndexOf(':');
             text[index] = text[index - 1];
         }
-        ;
 
+        // Some phonemes generated by eSpeak aren't supported by
+        // Klattersynth, so we try to approximate them using supported
+        // phonemes.
         Dictionary<char, char> phonemeFixes = new Dictionary<char, char>
         {
             { 'C', 'S' },
@@ -278,5 +393,15 @@ public class Tongue : BaseUnityPlugin
         {
             text.Replace(replacee, replacement);
         }
+
+        // eSpeak sometimes tries to change language mid-word like this:
+        // [(en)k'u:l(de)]
+        // Klattersynth obviously doesn't support this, so we strip out
+        // all text in parentheses.
+        tmp = Regex.Replace(text.ToString(), @"\([^)]*\)", "").Trim();
+        text.Length = 0;
+        text.Append(tmp);
+
+        Logger.LogDebug($"Saying word: {text}");
     }
 }
