@@ -292,7 +292,7 @@ public class Tongue : BaseUnityPlugin
                     BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public
                 )
                 .GetValue(_player);
-        Logger.LogInfo("Current Speaker: " + (string)steamID);
+        // Logger.LogInfo("Current Speaker: " + (string)steamID);
         Instance.currentSpeaker = steamID;
     }
 
@@ -382,7 +382,7 @@ public class Tongue : BaseUnityPlugin
             Instance.languageSetting.Value
         );
         text.Append(phoneticize(tmp, language));
-        Logger.LogInfo($"Saying word: {text}");
+        // Logger.LogInfo($"Saying word: {text}");
 
         // Don't mess with regular text
         if (language == "en")
