@@ -322,25 +322,6 @@ public class Tongue : BaseUnityPlugin
         }
     }
 
-    // [HarmonyPatch(typeof(AudioManager), "Update")]
-    // [HarmonyPostfix]
-    // private static void AudioManagerUpdatePostfix(object __instance)
-    // {
-    //     var type = __instance.GetType();
-    //     if (Input.GetKeyDown(KeyCode.B))
-    //     {
-    //         Logger.LogInfo("Muting Microphone!!");
-    //         type.GetField("pushToTalk", BindingFlags.NonPublic | BindingFlags.Instance)
-    //             .SetValue(__instance, true);
-    //     }
-    //     else if (Input.GetKeyUp(KeyCode.B))
-    //     {
-    //         Logger.LogInfo("Unmuting!!");
-    //         type.GetField("pushToTalk", BindingFlags.NonPublic | BindingFlags.Instance)
-    //             .SetValue(__instance, false);
-    //     }
-    // }
-
     [HarmonyPatch(typeof(PlayerAvatar), nameof(PlayerAvatar.ChatMessageSend))]
     [HarmonyPrefix]
     private static void ChatMessageSendPrefix(PlayerAvatar __instance)
