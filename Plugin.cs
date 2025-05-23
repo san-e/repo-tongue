@@ -272,6 +272,29 @@ public class Tongue : BaseUnityPlugin
         Instance.languagePerPlayer[steamID] = language;
     }
 
+    // Every time before TTS text is shown, update the current speaker.
+    // We do this here because this function gets a reference to the
+    // PlayerAvatar of the player speaking currently. Maybe this would've
+    // been useful to know before I did all this.
+    //
+    // We can't do this in HandleLanguageChangeEvent, presumably because
+    // it gets called after the first message is already spoken (??)
+    // Networked Events are weird like that I suppose
+    [HarmonyPatch(typeof(WorldSpaceUIParent), "TTS")]
+    [HarmonyPrefix]
+    private static void TTSPrefix(PlayerAvatar _player, string _text, float _time)
+    {
+        string steamID = (string)
+            typeof(PlayerAvatar)
+                .GetField(
+                    "steamID",
+                    BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public
+                )
+                .GetValue(_player);
+        Logger.LogInfo("Current Speaker: " + (string)steamID);
+        Instance.currentSpeaker = steamID;
+    }
+
     public void ChangeTTSLanguageForSteamID(string steamID, string language)
     {
         if (!language_list.Contains(language))
@@ -334,7 +357,6 @@ public class Tongue : BaseUnityPlugin
             NetworkingEvents.RaiseAll,
             SendOptions.SendReliable
         );
-        Instance.currentSpeaker = steamID;
     }
 
     [HarmonyPatch(
