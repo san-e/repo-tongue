@@ -1,5 +1,5 @@
 # Tongue
-
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/san-e/repo-tongue)
 **Tongue** is a plugin that forces the Semibots to speak in a language of your choosing!
 
 ## How?
