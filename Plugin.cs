@@ -290,7 +290,7 @@ public class Tongue : BaseUnityPlugin
                     BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public
                 )
                 .GetValue(_player);
-        // Logger.LogInfo("Current Speaker: " + (string)steamID);
+        Logger.LogDebug("Current Speaker: " + (string)steamID);
         Instance.currentSpeaker = steamID;
     }
 
@@ -402,6 +402,6 @@ public class Tongue : BaseUnityPlugin
         text.Length = 0;
         text.Append(tmp);
 
-        // Logger.LogInfo($"Saying word: {text}");
+        Logger.LogDebug($"Saying word: {text}");
     }
 }
